@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Responsive Search with Results Table</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="container my-4">
+      <!-- Search Section -->
+      <div class="row mb-4">
+        <div class="col-md-8 col-sm-12">
+          <input
+            type="text"
+            class="form-control"
+            placeholder="Enter search term..."
+            id="searchInput"
+          />
+        </div>
+        <div class="col-md-4 col-sm-12">
+          <button
+            type="button"
+            class="btn btn-primary w-100"
+            onclick="performSearch()"
+          >
+            Search
+          </button>
+        </div>
+      </div>
+
+      <div style="max-width: 900px" class="container mt-5">
+        <!-- Results Table -->
+        <div class="table-responsive">
+          <h1 class="text-center">Student Exam Results</h1>
+
+          <table class="table table-bordered mt-4" id="examResultsTable">
+            <thead>
+              <tr>
+                <th>SL No.</th>
+                <th>Exam Name</th>
+                <th>Marks</th>
+                <th>Branch Highest</th>
+                <th>Highest Marks</th>
+                <th>Cut Marks</th>
+                <th>Branch Merit</th>
+                <th>Central Merit</th>
+              </tr>
+            </thead>
+            <tbody id="resultsTableBody">
+              <!-- Search results will be inserted here -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Chart canvas for the score growth -->
+        <div class="mt-5" style="position: relative">
+          <h3 class="text-center">Score Growth and Accuracy</h3>
+          <canvas id="scoreGrowthChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optional JavaScript for Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Script to Populate Results and Chart -->
+    <script>
+      async function performSearch() {
+        const roll = $("#searchInput").val();
+
+        try {
+          const response = await $.ajax({
+            type: "POST",
+            url: "/search",
+            contentType: "application/json",
+            data: JSON.stringify({ roll }),
+          });
+
+          const exams = response.exams || [];
+          const tableBody = $("#resultsTableBody");
+          tableBody.empty(); // Clear previous results
+
+          // Check if there are exams after filtering
+          if (exams.length === 0) {
+            tableBody.append(
+              '<tr><td colspan="8" class="text-center">No exams found.</td></tr>'
+            );
+            return;
+          }
+
+          // Fill table with exam data and add SL No.
+          exams.forEach((exam, index) => {
+            const branchMerit = exam.resultPublished
+              ? exam.branchMerit || "N/A"
+              : "N/A";
+            const centralMerit = exam.resultPublished
+              ? exam.centralMerit || "N/A"
+              : "N/A";
+            const cutMarks =
+              exam.examCut && exam.examCut > 0 ? exam.examCut : "N/A";
+
+            const row = `
+              <tr>
+                <td>${index + 1}</td>
+                <td><a style="color: black; text-decoration: underline" href="/dashboard/exams/${
+                  exam.examId
+                }">${exam.examName}</a></td>
+                <td>${exam.mark}</td>
+                <td>${exam.branchHighest}</td>
+                <td>${exam.highestMark}</td>
+                <td>${cutMarks}</td>
+                <td>${branchMerit}</td>
+                <td>${centralMerit}</td>
+              </tr>
+            `;
+            tableBody.append(row);
+          });
+
+          // Plot the chart if there are multiple exams
+          if (exams.length >= 2) {
+            plotChart(exams);
+          }
+        } catch (error) {
+          console.error("Error fetching exam data:", error);
+          $("#resultsTableBody").append(
+            '<tr><td colspan="8" class="text-center text-danger">Error loading exams.</td></tr>'
+          );
+        }
+      }
+
+      function plotChart(exams) {
+        const ctx = document
+          .getElementById("scoreGrowthChart")
+          .getContext("2d");
+        const labels = exams.map((exam, index) => index + 1); // SL numbers for X-axis
+        const scores = exams.map((exam) => exam.mark);
+        const accuracies = exams.map((exam) => {
+          const totalAnswers = (exam.rightAns || 0) + (exam.wrongAns || 0);
+          return totalAnswers > 0 ? (exam.rightAns / totalAnswers) * 100 : 0;
+        });
+
+        const highestMarks = exams.map((exam) =>
+          exam.highestMark && exam.highestMark > 0 ? exam.highestMark : 0
+        );
+        const branchHighestMarks = exams.map((exam) =>
+          exam.branchHighest && exam.branchHighest > 0 ? exam.branchHighest : 0
+        );
+
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: labels, // X-axis labels (SL No.)
+            datasets: [
+              {
+                label: "Scores",
+                data: scores, // Y-axis data for scores
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 2,
+                fill: false,
+              },
+              {
+                label: "Accuracy (%)",
+                data: accuracies, // Y-axis data for accuracy
+                borderColor: "rgba(255, 99, 132, 1)",
+                borderWidth: 2,
+                fill: false,
+                borderDash: [5, 5], // Dashed line for accuracy
+              },
+              {
+                label: "Highest Mark",
+                data: highestMarks,
+                borderColor: "rgba(11, 61, 248)",
+                borderWidth: 2,
+                fill: false,
+              },
+              {
+                label: "Branch Highest Mark",
+                data: branchHighestMarks,
+                borderColor: "rgba(248, 11, 194)",
+                borderWidth: 2,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Score / Accuracy (%)",
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "SL No.",
+                },
+              },
+            },
+          },
+        });
+      }
+    </script>
+  </body>
+</html>
