@@ -1,4 +1,8 @@
-const { secondaryConnection } = require("../config/mongodbConnections"); // Adjust path as needed
+const {
+  secondaryConnection,
+  MedicalConnection,
+  EngineeringConnection,
+} = require("../config/mongodbConnections"); // Adjust path as needed
 const mongoose = require("mongoose");
 
 const examSchema = new mongoose.Schema(
@@ -36,5 +40,13 @@ const examSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Export the model attached to the secondary connection
-module.exports = secondaryConnection.model("Exam", examSchema);
+// Create and export models for each database connection
+const Exam = secondaryConnection.model("Exam", examSchema);
+const ExamEng = MedicalConnection.model("Exam", examSchema);
+const ExamMedi = EngineeringConnection.model("Exam", examSchema);
+
+module.exports = {
+  Exam,
+  ExamEng,
+  ExamMedi,
+};

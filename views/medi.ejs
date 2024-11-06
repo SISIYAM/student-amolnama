@@ -67,7 +67,7 @@
       <div style="max-width: 900px" class="container mt-5">
         <!-- Results Table -->
         <div class="table-responsive">
-          <h1 class="text-center">Student Exam Results</h1>
+          <h1 class="text-center">Student Medical Exam Results</h1>
 
           <table class="table table-bordered mt-4" id="examResultsTable">
             <thead>
@@ -109,7 +109,7 @@
         try {
           const response = await $.ajax({
             type: "POST",
-            url: "/search",
+            url: "/search/medical",
             contentType: "application/json",
             data: JSON.stringify({ roll }),
           });
